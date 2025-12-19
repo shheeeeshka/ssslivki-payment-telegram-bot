@@ -163,7 +163,7 @@ bot.start(async (ctx) => {
     setTimeout(async () => {
         const post3 = messageService.getPost3();
         await sendMessageWithPhotos(ctx, post3.text, post3.photos, post3.buttons);
-    }, 61000);
+    }, 30000);
 });
 
 bot.action('show_tariffs', async (ctx) => {
