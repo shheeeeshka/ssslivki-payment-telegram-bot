@@ -54,7 +54,6 @@ temp/
 # Cache
 .cache/
 .turbo/
-photos/
 
 # Coverage
 coverage/

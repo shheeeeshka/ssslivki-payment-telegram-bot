@@ -168,7 +168,11 @@ bot.start(async (ctx) => {
 
 bot.action('show_tariffs', async (ctx) => {
     await ctx.answerCbQuery();
-    await showTariffs(ctx);
+    await showDetails(ctx);
+
+    setTimeout(async () => {
+        await showTariffs(ctx);
+    }, 2000);
 });
 
 bot.command('pay', async (ctx) => {
@@ -416,6 +420,63 @@ bot.command('videos', async (ctx) => {
 
     await ctx.reply(message);
 });
+
+async function showDetails(ctx: any) {
+    const detailMessage = messageService.getPost4();
+
+    try {
+        if (detailMessage.photos && detailMessage.photos.length > 0) {
+            if (detailMessage.photos.length >= 2) {
+                const mediaGroup = detailMessage.photos.map((photo, index) => {
+                    const absolutePath = path.isAbsolute(photo) ? photo : path.join(process.cwd(), photo);
+                    return {
+                        type: 'photo',
+                        media: { source: absolutePath },
+                        caption: index === 0 ? detailMessage.text : undefined,
+                        parse_mode: 'Markdown'
+                    };
+                });
+
+                await ctx.replyWithMediaGroup(mediaGroup);
+            } else if (detailMessage.photos.length === 1) {
+                const photo = detailMessage.photos[0];
+                const absolutePath = path.isAbsolute(photo) ? photo : path.join(process.cwd(), photo);
+                await ctx.replyWithPhoto(
+                    { source: absolutePath },
+                    { caption: detailMessage.text, parse_mode: 'Markdown' }
+                );
+            }
+        } else {
+            await ctx.reply(detailMessage.text, { parse_mode: 'Markdown' });
+        }
+
+        if (detailMessage.buttons && detailMessage.buttons.length > 0) {
+            const keyboardButtons = detailMessage.buttons.map(button => {
+                if (button.action) {
+                    return [Markup.button.callback(button.text, button.action)];
+                }
+                return [];
+            }).filter(row => row.length > 0);
+
+            if (keyboardButtons.length > 0) {
+                setTimeout(async () => {
+                    await ctx.reply(
+                        '👇',
+                        Markup.inlineKeyboard(keyboardButtons)
+                    );
+                }, 100);
+            }
+        }
+    } catch (error) {
+        console.error('Error showing details:', error);
+        await ctx.reply(detailMessage.text, {
+            parse_mode: 'Markdown',
+            reply_markup: Markup.inlineKeyboard([
+                detailMessage.buttons.map(button => Markup.button.callback(button.text, button.action!))
+            ]).reply_markup
+        });
+    }
+}
 
 async function showTariffs(ctx: any) {
     const user = (ctx as any).user;

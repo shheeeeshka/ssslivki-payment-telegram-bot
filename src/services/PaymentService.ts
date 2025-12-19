@@ -51,12 +51,26 @@ export class PaymentService {
 
                     if (payment.description?.includes('Тариф 1')) {
                         messageData = messageService.getAfterPaymentTariff1();
-                        messageText = messageData.text.replace('[ссылка на доступ в закрытый тг-канал]', secretLink || '');
+                        messageText = messageData.text;
                     } else if (payment.description?.includes('Тариф 2')) {
                         messageData = messageService.getAfterPaymentTariff2();
-                        messageText = messageData.text.replace('[вступить в клуб]', secretLink || '');
+                        messageText = messageData.text;
                     } else {
                         messageText = `✅ Оплата успешно получена!\n🔗 Ссылка на закрытый канал: ${secretLink}\n\nТеперь у вас есть доступ.`;
+                    }
+
+                    if (secretLink) {
+                        if (payment.description?.includes('Тариф 1')) {
+                            messageText = messageText.replace(
+                                '[ссылка на доступ в закрытый тг-канал]',
+                                `[ссылка на доступ в закрытый тг-канал](${secretLink})`
+                            );
+                        } else if (payment.description?.includes('Тариф 2')) {
+                            messageText = messageText.replace(
+                                '[вступить в клуб]',
+                                `[вступить в клуб](${secretLink})`
+                            );
+                        }
                     }
 
                     if (messageData && messageData.photos && messageData.photos.length > 0) {
