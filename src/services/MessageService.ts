@@ -1,5 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { Markup } from 'telegraf';
+import { Video } from '../models/Video.js';
 
 interface Button {
     text: string;
@@ -7,19 +9,20 @@ interface Button {
     action?: string;
 }
 
+interface VideoLesson {
+    id: string;
+    telegramFileId?: string;
+    video_url?: string;
+    thumbnail?: string;
+    caption: string;
+    buttons: Button[];
+}
+
 interface StartMessage {
     id: string;
     text: string;
     buttons: Button[];
     photos: string[];
-}
-
-interface VideoLesson {
-    id: string;
-    video_url: string;
-    thumbnail?: string;
-    caption: string;
-    buttons: Button[];
 }
 
 interface PostMessage {
@@ -32,7 +35,15 @@ interface PostMessage {
 interface TariffMessage {
     id: string;
     text: string;
+    photos: string[];
     buttons: Button[];
+    button_caption?: string;
+}
+
+interface AfterPaymentMessage {
+    id: string;
+    text: string;
+    photos: string[];
 }
 
 interface MessagesData {
@@ -41,6 +52,8 @@ interface MessagesData {
     post_2: PostMessage;
     post_3: PostMessage;
     tariff_message: TariffMessage;
+    after_payment_tariff_1: AfterPaymentMessage;
+    after_payment_tariff_2: AfterPaymentMessage;
 }
 
 class MessageService {
@@ -103,6 +116,7 @@ class MessageService {
                 tariff_message: {
                     id: "tariff_message",
                     text: "**1 тариф. Home Glow Alone 🧣🧸🎀🎄**\n\n**Самостоятельный формат — 3 000 ₽ (= 1 румяна)**\n\n🥨 3 видео-урока\n🥨 авторские техники\n🥨 доступ сразу\n\n**2 тариф. Home Glow w/help☕🍪🤎📜🧸**\n\n**С обратной связью от меня — 5 000 ₽ (=1 палетка теней)**\n\n🥨 всё из самостоятельного формата\n🥨 моя личная обратная связь по твоему макияжу\n🥨 рекомендации и корректировки\n🥨 разбор косметички",
+                    photos: ["photos/tariff_1.jpg", "photos/tariff_2.jpg"],
                     buttons: [
                         {
                             text: "🧸 Купить 1 тариф (без обратной связи)",
@@ -112,7 +126,18 @@ class MessageService {
                             text: "🎀🎄 Купить 2 тариф (с обратной связью)",
                             action: "pay_tariff_2"
                         }
-                    ]
+                    ],
+                    button_caption: "Осталось только кликнуть и курс твой! ✨"
+                },
+                after_payment_tariff_1: {
+                    id: "after_payment_tariff_1",
+                    text: "Добро пожаловать, красотка! Ты оформила **самостоятельный формат** 🍓🥨⭐️\n\nДоступ ко всем урокам уже открыт:\n[ссылка на доступ в закрытый тг-канал]\n\nПриятного обучения и красивого Нового года! 🎄✨",
+                    photos: ["photos/after_payment_1.jpg", "photos/after_payment_2.jpg"]
+                },
+                after_payment_tariff_2: {
+                    id: "after_payment_tariff_2",
+                    text: "Красотка, добро пожаловать! Ты оформила формат **с моей обратной связью** 🥨🍓✨\n\nДоступ ко всем урокам уже открыт: [вступить в клуб]\n\nЧтобы я могла проверить твой макияж и дать рекомендации:\n1. Сделай фото своего макияжа до и после уроков, а также косметичку\n2. Пришли мне сюда (в этот чат)\n3. Я дам комментарии и подскажу, как улучшить результат\n\nПриятного обучения и красивого Нового года! 🎄✨",
+                    photos: ["photos/after_payment_1.jpg", "photos/after_payment_2.jpg"]
                 }
             };
         }
@@ -122,8 +147,19 @@ class MessageService {
         return this.messages!.start_message;
     }
 
-    getVideoLesson(): VideoLesson {
-        return this.messages!.video_lesson;
+    async getVideoLesson(): Promise<VideoLesson> {
+        const lesson = { ...this.messages!.video_lesson };
+
+        try {
+            const video = await Video.findOne({ name: 'video_lesson' });
+            if (video && video.fileId) {
+                lesson.telegramFileId = video.fileId;
+            }
+        } catch (error) {
+            console.error('Error getting video from DB:', error);
+        }
+
+        return lesson;
     }
 
     getPost2(): PostMessage {
@@ -136,6 +172,62 @@ class MessageService {
 
     getTariffMessage(): TariffMessage {
         return this.messages!.tariff_message;
+    }
+
+    getAfterPaymentTariff1(): AfterPaymentMessage {
+        return this.messages!.after_payment_tariff_1;
+    }
+
+    getAfterPaymentTariff2(): AfterPaymentMessage {
+        return this.messages!.after_payment_tariff_2;
+    }
+
+    setVideoFileId(fileId: string) {
+        console.log('upd: fileid', fileId);
+        if (this.messages) {
+            this.messages.video_lesson.telegramFileId = fileId;
+        }
+    }
+
+    clearVideoFileId() {
+        if (this.messages) {
+            this.messages.video_lesson.telegramFileId = '';
+        }
+    }
+
+    getVideoLessonWithoutCaption(): VideoLesson {
+        const lesson = { ...this.messages!.video_lesson };
+        lesson.caption = '';
+        return lesson;
+    }
+
+    async sendTelegramVideo(ctx: any, fileId: string, caption?: string, buttons?: any[]) {
+        try {
+            const options: any = { parse_mode: 'Markdown' };
+
+            if (caption) {
+                options.caption = caption;
+            }
+
+            if (buttons && buttons.length > 0) {
+                const inlineKeyboard = buttons.map(button => {
+                    if (button.url) {
+                        return [Markup.button.url(button.text, button.url)];
+                    }
+                    return [];
+                }).filter(row => row.length > 0);
+
+                if (inlineKeyboard.length > 0) {
+                    options.reply_markup = Markup.inlineKeyboard(inlineKeyboard).reply_markup;
+                }
+            }
+
+            await ctx.replyWithVideo(fileId, options);
+            return true;
+        } catch (error) {
+            console.error('Error sending Telegram video:', error);
+            return false;
+        }
     }
 }
 

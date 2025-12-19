@@ -1,6 +1,7 @@
 import { Payment } from '../models/Payment.js';
 import { User } from '../models/User.js';
 import { YooKassaService } from './YooKassaService.js';
+import { messageService } from './MessageService.js';
 
 export class PaymentService {
     static async createPayment(userId: number, amount: number, description: string) {
@@ -44,20 +45,46 @@ export class PaymentService {
                 const bot = (global as any).bot;
                 if (bot) {
                     const secretLink = process.env.SECRET_LINK;
-                    let welcomeMessage = '';
+
+                    let messageData;
+                    let messageText = '';
 
                     if (payment.description?.includes('Тариф 1')) {
-                        welcomeMessage = `Добро пожаловать, красотка! Ты оформила **самостоятельный формат** 💄\n\nДоступ ко всем урокам уже открыт:\n${secretLink}\n\nПриятного обучения и красивого Нового года! 🎄✨`;
+                        messageData = messageService.getAfterPaymentTariff1();
+                        messageText = messageData.text.replace('[ссылка на доступ в закрытый тг-канал]', secretLink || '');
                     } else if (payment.description?.includes('Тариф 2')) {
-                        welcomeMessage = `Красотка, добро пожаловать! Ты оформила формат **с моей обратной связью** ✨\n\nДоступ ко всем урокам уже открыт: ${secretLink}\n\nЧтобы я могла проверить твой макияж и дать рекомендации:\n1. Сделай фото своего макияжа до и после уроков, а также косметичку\n2. Пришли мне сюда (в этот чат)\n3. Я дам комментарии и подскажу, как улучшить результат\n\nПриятного обучения и красивого Нового года! 🎄✨`;
+                        messageData = messageService.getAfterPaymentTariff2();
+                        messageText = messageData.text.replace('[вступить в клуб]', secretLink || '');
                     } else {
-                        welcomeMessage = `✅ Оплата успешно получена!\n🔗 Ссылка на закрытый канал: ${secretLink}\n\nТеперь у вас есть доступ.`;
+                        messageText = `✅ Оплата успешно получена!\n🔗 Ссылка на закрытый канал: ${secretLink}\n\nТеперь у вас есть доступ.`;
                     }
 
-                    await bot.telegram.sendMessage(
-                        payment.userId,
-                        welcomeMessage
-                    );
+                    if (messageData && messageData.photos && messageData.photos.length > 0) {
+                        try {
+                            const photos = messageData.photos;
+                            const mediaGroup = photos.map((photo, index) => ({
+                                type: 'photo',
+                                media: { source: photo },
+                                caption: index === 0 ? messageText : undefined,
+                                parse_mode: 'Markdown'
+                            }));
+
+                            await bot.telegram.sendMediaGroup(payment.userId, mediaGroup);
+                        } catch (photoError) {
+                            console.error('Error sending photos:', photoError);
+                            await bot.telegram.sendMessage(
+                                payment.userId,
+                                messageText,
+                                { parse_mode: 'Markdown' }
+                            );
+                        }
+                    } else {
+                        await bot.telegram.sendMessage(
+                            payment.userId,
+                            messageText,
+                            { parse_mode: 'Markdown' }
+                        );
+                    }
                 }
 
                 return { success: true, userId: payment.userId, payment };

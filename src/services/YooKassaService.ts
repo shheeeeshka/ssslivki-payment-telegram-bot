@@ -21,7 +21,7 @@ export class YooKassaService {
             },
             confirmation: {
                 type: 'redirect',
-                return_url: process.env.YOOKASSA_RETURN_URL || `https://t.me/${process.env.BOT_USERNAME}`
+                return_url: process.env.YOOKASSA_RETURN_URL
             },
             capture: true,
             description,

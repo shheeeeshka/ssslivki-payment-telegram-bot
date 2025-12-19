@@ -21,23 +21,10 @@ app.post('/webhook/yookassa', async (req, res) => {
 
         if (event === 'payment.succeeded' || event === 'payment.waiting_for_capture') {
             const result = await PaymentService.handleWebhook(object.id);
-
-            if (result.success && result.userId) {
-                const bot = (global as any).bot;
-                if (bot) {
-                    const secretLink = process.env.SECRET_LINK;
-
-                    if (secretLink) {
-                        await bot.telegram.sendMessage(
-                            result.userId,
-                            `✅ Оплата успешно получена!\n🔗 Ссылка на закрытый канал: ${secretLink}\n\nТеперь у вас есть доступ.`
-                        );
-                    }
-                }
-            }
+            res.status(200).send('OK');
+        } else {
+            res.status(200).send('OK');
         }
-
-        res.status(200).send('OK');
     } catch (error) {
         console.error('Webhook error:', error);
         res.status(500).send('Error');
@@ -65,7 +52,6 @@ async function startServer() {
         });
     } catch (error) {
         console.error('Server startup error:', error);
-        process.exit(1);
     }
 }
 
