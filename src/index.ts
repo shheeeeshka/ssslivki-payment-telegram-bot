@@ -27,7 +27,10 @@ bot.use(checkAccess);
 
 async function sendMessageWithPhotos(ctx: any, text: string, photos: string[], buttons?: any[]) {
     try {
-        const messageOptions: any = { parse_mode: 'Markdown' };
+        const messageOptions: any = {
+            parse_mode: 'Markdown',
+            protect_content: true
+        };
 
         if (buttons && buttons.length > 0) {
             const inlineKeyboard = buttons.map(button => {
@@ -81,7 +84,10 @@ async function sendMessageWithPhotos(ctx: any, text: string, photos: string[], b
         }
     } catch (error) {
         console.error(`Error sending message with photos:`, error);
-        await ctx.reply(text, { parse_mode: 'Markdown', protect_content: true });
+        await ctx.reply(text, {
+            parse_mode: 'Markdown',
+            protect_content: true
+        });
     }
 }
 
@@ -125,7 +131,10 @@ async function sendVideoByUrl(ctx: any, videoUrl: string, caption?: string, thum
         if (photos && photos.length > 0) {
             await sendMessageWithPhotos(ctx, caption || '', photos, buttons);
         } else {
-            const textOptions: any = { parse_mode: 'Markdown' };
+            const textOptions: any = {
+                parse_mode: 'Markdown',
+                protect_content: true
+            };
 
             if (buttons && buttons.length > 0) {
                 const inlineKeyboard = buttons.map(button => {
@@ -150,11 +159,6 @@ async function sendVideoByUrl(ctx: any, videoUrl: string, caption?: string, thum
 bot.start(async (ctx) => {
     const startMessage = messageService.getStartMessage();
     await sendMessageWithPhotos(ctx, startMessage.text, startMessage.photos, startMessage.buttons);
-
-    // setTimeout(async () => {
-    //     const videoLesson = messageService.getVideoLesson();
-    //     await sendVideoByUrl(ctx, videoLesson.video_url, videoLesson.caption, videoLesson.thumbnail, videoLesson.buttons);
-    // }, 100);
 
     setTimeout(async () => {
         const post2 = messageService.getPost2();
@@ -201,7 +205,8 @@ bot.action('admin_upload_video', async (ctx) => {
         '• Максимальный размер: 2 ГБ\n' +
         '• Формат: MP4, MOV, AVI\n' +
         '• Просто отправьте видео файл\n\n' +
-        '❌ Отправка отменяется через 5 минут'
+        '❌ Отправка отменяется через 5 минут',
+        { protect_content: true }
     );
 });
 
@@ -219,22 +224,22 @@ bot.on('video', async (ctx) => {
 
     const video = ctx.message.video;
 
-    await ctx.reply('📥 Получил видео, начинаю обработку...');
+    await ctx.reply('📥 Получил видео, начинаю обработку...', { protect_content: true });
 
     if (!video.file_size) {
-        return ctx.reply('❌ Не удалось получить размер файла');
+        return ctx.reply('❌ Не удалось получить размер файла', { protect_content: true });
     }
 
     if (video.file_size > 2000 * 1024 * 1024) {
-        return ctx.reply('❌ Файл слишком большой (максимум 2 ГБ)');
+        return ctx.reply('❌ Файл слишком большой (максимум 2 ГБ)', { protect_content: true });
     }
 
     if (!video.file_id) {
-        return ctx.reply('❌ Не удалось получить File ID');
+        return ctx.reply('❌ Не удалось получить File ID', { protect_content: true });
     }
 
     try {
-        await ctx.reply('⏳ Загружаю видео в Telegram Cloud...');
+        await ctx.reply('⏳ Загружаю видео в Telegram Cloud...', { protect_content: true });
 
         const videoDoc = await Video.findOneAndUpdate(
             { name: 'video_lesson' },
@@ -269,7 +274,7 @@ bot.on('video', async (ctx) => {
 
     } catch (error) {
         console.error('Error saving video:', error);
-        await ctx.reply('❌ Ошибка при сохранении видео');
+        await ctx.reply('❌ Ошибка при сохранении видео', { protect_content: true });
     }
 });
 
@@ -280,7 +285,7 @@ bot.command('delete_video', async (ctx) => {
     const videos = await Video.find().sort({ createdAt: -1 });
 
     if (videos.length === 0) {
-        return ctx.reply('📭 Нет загруженных видео для удаления');
+        return ctx.reply('📭 Нет загруженных видео для удаления', { protect_content: true });
     }
 
     const buttons = videos.map((video, index) => {
@@ -295,7 +300,10 @@ bot.command('delete_video', async (ctx) => {
 
     await ctx.reply(
         '🗑️ Выберите видео для удаления:',
-        Markup.inlineKeyboard(buttons)
+        {
+            reply_markup: Markup.inlineKeyboard(buttons).reply_markup,
+            protect_content: true
+        }
     );
 });
 
@@ -333,44 +341,7 @@ bot.action(/^delvid_(.+)/, async (ctx) => {
         await ctx.answerCbQuery('✅ Видео удалено');
         await ctx.deleteMessage();
 
-        await ctx.reply(`✅ Видео "${video.name}" успешно удалено`);
-    } catch (error) {
-        console.error('Error deleting video:', error);
-        await ctx.answerCbQuery('❌ Ошибка при удалении');
-    }
-});
-
-bot.action(/^delete_video_/, async (ctx) => {
-    const user = (ctx as any).user;
-    if (!user.isAdmin) return;
-
-    const match = ctx.match[0];
-    const videoId = match.replace('delete_video_', '');
-    console.log({ match, videoId });
-
-    if (!videoId) {
-        await ctx.answerCbQuery('❌ Неверный ID видео');
-        return;
-    }
-
-    try {
-        const video = await Video.findById(videoId);
-
-        if (!video) {
-            await ctx.answerCbQuery('❌ Видео не найдено');
-            return;
-        }
-
-        await Video.findByIdAndDelete(videoId);
-
-        if (video.name === 'video_lesson') {
-            messageService.clearVideoFileId();
-        }
-
-        await ctx.answerCbQuery('✅ Видео удалено');
-        await ctx.deleteMessage();
-
-        await ctx.reply(`✅ Видео "${video.name}" успешно удалено`);
+        await ctx.reply(`✅ Видео "${video.name}" успешно удалено`, { protect_content: true });
     } catch (error) {
         console.error('Error deleting video:', error);
         await ctx.answerCbQuery('❌ Ошибка при удалении');
@@ -380,7 +351,7 @@ bot.action(/^delete_video_/, async (ctx) => {
 bot.command('upload_lesson', async (ctx) => {
     const user = (ctx as any).user;
     if (!user.isAdmin) {
-        return ctx.reply('❌ Требуются права администратора');
+        return ctx.reply('❌ Требуются права администратора', { protect_content: true });
     }
 
     adminUploadStates.set(user.telegramId, true);
@@ -394,7 +365,8 @@ bot.command('upload_lesson', async (ctx) => {
         '• Максимальный размер: 2 ГБ\n' +
         '• Формат: MP4, MOV, AVI\n' +
         '• Просто отправьте видео файл\n\n' +
-        '❌ Отменяется через 5 минут'
+        '❌ Отменяется через 5 минут',
+        { protect_content: true }
     );
 });
 
@@ -405,7 +377,7 @@ bot.command('videos', async (ctx) => {
     const videos = await Video.find().sort({ createdAt: -1 });
 
     if (videos.length === 0) {
-        return ctx.reply('📭 Нет загруженных видео');
+        return ctx.reply('📭 Нет загруженных видео', { protect_content: true });
     }
 
     let message = '📹 Загруженные видео:\n\n';
@@ -420,7 +392,7 @@ bot.command('videos', async (ctx) => {
 
     message += '\n❌ Для удаления используйте команду /delete_video';
 
-    await ctx.reply(message);
+    await ctx.reply(message, { protect_content: true });
 });
 
 async function showDetails(ctx: any) {
@@ -445,11 +417,18 @@ async function showDetails(ctx: any) {
                 const absolutePath = path.isAbsolute(photo) ? photo : path.join(process.cwd(), photo);
                 await ctx.replyWithPhoto(
                     { source: absolutePath },
-                    { caption: detailMessage.text, parse_mode: 'Markdown' }
+                    {
+                        caption: detailMessage.text,
+                        parse_mode: 'Markdown',
+                        protect_content: true
+                    }
                 );
             }
         } else {
-            await ctx.reply(detailMessage.text, { parse_mode: 'Markdown' });
+            await ctx.reply(detailMessage.text, {
+                parse_mode: 'Markdown',
+                protect_content: true
+            });
         }
 
         if (detailMessage.buttons && detailMessage.buttons.length > 0) {
@@ -464,7 +443,10 @@ async function showDetails(ctx: any) {
                 setTimeout(async () => {
                     await ctx.reply(
                         '👇',
-                        Markup.inlineKeyboard(keyboardButtons)
+                        {
+                            reply_markup: Markup.inlineKeyboard(keyboardButtons).reply_markup,
+                            protect_content: true
+                        }
                     );
                 }, 100);
             }
@@ -473,6 +455,7 @@ async function showDetails(ctx: any) {
         console.error('Error showing details:', error);
         await ctx.reply(detailMessage.text, {
             parse_mode: 'Markdown',
+            protect_content: true,
             reply_markup: Markup.inlineKeyboard([
                 detailMessage.buttons.map(button => Markup.button.callback(button.text, button.action!))
             ]).reply_markup
@@ -484,70 +467,20 @@ async function showTariffs(ctx: any) {
     const user = (ctx as any).user;
 
     if (user.hasAccess) {
-        return ctx.reply('✅ У вас уже есть доступ к каналу!');
+        return ctx.reply('✅ У вас уже есть доступ к каналу!', { protect_content: true });
     }
 
     const tariffMessage = messageService.getTariffMessage();
 
-    try {
-        if (tariffMessage.photos && tariffMessage.photos.length >= 2) {
-            const mediaGroup = tariffMessage.photos.map((photo, index) => {
-                const absolutePath = path.isAbsolute(photo) ? photo : path.join(process.cwd(), photo);
-                return {
-                    type: 'photo',
-                    media: { source: absolutePath },
-                    caption: index === 0 ? tariffMessage.text : undefined,
-                    parse_mode: 'Markdown'
-                };
-            });
+    const keyboard = Markup.inlineKeyboard([
+        tariffMessage.buttons.map(button => Markup.button.callback(button.text, button.action!))
+    ]);
 
-            await ctx.replyWithMediaGroup(mediaGroup);
-        } else if (tariffMessage.photos && tariffMessage.photos.length === 1) {
-            const photo = tariffMessage.photos[0];
-            const absolutePath = path.isAbsolute(photo) ? photo : path.join(process.cwd(), photo);
-            await ctx.replyWithPhoto(
-                { source: absolutePath },
-                { caption: tariffMessage.text, parse_mode: 'Markdown' }
-            );
-        } else {
-            await ctx.reply(tariffMessage.text, { parse_mode: 'Markdown' });
-        }
-
-        await ctx.reply(
-            tariffMessage.button_caption || '👇',
-            Markup.inlineKeyboard([
-                tariffMessage.buttons.map(button => Markup.button.callback(button.text, button.action!))
-            ])
-        );
-    } catch (error) {
-        console.error('Error showing tariffs:', error);
-        await ctx.reply(tariffMessage.text, {
-            parse_mode: 'Markdown',
-            reply_markup: Markup.inlineKeyboard([
-                tariffMessage.buttons.map(button => Markup.button.callback(button.text, button.action!))
-            ]).reply_markup
-        });
-    }
-}
-
-async function sendVideoLesson(ctx: any) {
-    const videoLesson = await messageService.getVideoLesson();
-
-    if (videoLesson.telegramFileId) {
-        const success = await messageService.sendTelegramVideo(
-            ctx,
-            videoLesson.telegramFileId,
-            videoLesson.caption,
-            videoLesson.buttons
-        );
-
-        if (success) return;
-    }
-
-    if (videoLesson.video_url) {
-        await sendVideoByUrl(ctx, videoLesson.video_url, videoLesson.caption,
-            videoLesson.thumbnail, videoLesson.buttons);
-    }
+    await ctx.reply(tariffMessage.text, {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard.reply_markup,
+        protect_content: true
+    });
 }
 
 bot.action(/pay_tariff_(1|2)/, async (ctx) => {
@@ -580,33 +513,14 @@ bot.action(/pay_tariff_(1|2)/, async (ctx) => {
         await ctx.reply(
             `💸 Выбран тариф ${tariffNumber}: ${amount} руб.\n\n` +
             `Для оплаты перейдите по ссылке ниже. После успешной оплаты вы автоматически получите доступ к каналу.`,
-            keyboard
+            {
+                reply_markup: keyboard.reply_markup,
+                protect_content: true
+            }
         );
     } catch (error) {
         console.error('Payment creation error:', error);
-        await ctx.reply('❌ Ошибка при создании платежа. Попробуйте позже.');
-    }
-});
-
-bot.action('watch_free_lesson', async (ctx) => {
-    await ctx.answerCbQuery();
-
-    const videoLesson = await messageService.getVideoLesson();
-
-    if (videoLesson.telegramFileId) {
-        try {
-            await ctx.replyWithVideo(videoLesson.telegramFileId);
-            return;
-        } catch (error) {
-            console.error('Telegram video error:', error);
-        }
-    }
-
-    if (videoLesson.video_url) {
-        const keyboard = Markup.inlineKeyboard([
-            [Markup.button.url('💌 Смотри урок здесь', videoLesson.video_url)]
-        ]);
-        await ctx.reply('📹 Видео доступно по ссылке:', keyboard);
+        await ctx.reply('❌ Ошибка при создании платежа. Попробуйте позже.', { protect_content: true });
     }
 });
 
@@ -616,7 +530,7 @@ bot.command('history', async (ctx) => {
     const payments = await PaymentService.getUserPayments(user.telegramId);
 
     if (payments.length === 0) {
-        return ctx.reply('📭 У вас нет платежей');
+        return ctx.reply('📭 У вас нет платежей', { protect_content: true });
     }
 
     let message = '📋 История платежей:\n\n';
@@ -631,14 +545,14 @@ bot.command('history', async (ctx) => {
         message += '\n';
     });
 
-    await ctx.reply(message);
+    await ctx.reply(message, { protect_content: true });
 });
 
 bot.command('admin', async (ctx) => {
     const user = (ctx as any).user;
 
     if (!user.isAdmin) {
-        return ctx.reply('❌ У вас нет прав администратора');
+        return ctx.reply('❌ У вас нет прав администратора', { protect_content: true });
     }
 
     const usersCount = await User.countDocuments();
@@ -653,10 +567,13 @@ bot.command('admin', async (ctx) => {
         `/stats - статистика\n` +
         `/videos - список видео\n` +
         `/delete_video - удалить видео`,
-        Markup.inlineKeyboard([
-            [Markup.button.callback('📤 Загрузить видео для урока', 'admin_upload_video')],
-            [Markup.button.callback('🗑️ Удалить видео', 'delete_video_admin')]
-        ])
+        {
+            reply_markup: Markup.inlineKeyboard([
+                [Markup.button.callback('📤 Загрузить видео для урока', 'admin_upload_video')],
+                [Markup.button.callback('🗑️ Удалить видео', 'delete_video_admin')]
+            ]).reply_markup,
+            protect_content: true
+        }
     );
 });
 
@@ -670,7 +587,7 @@ bot.action('delete_video_admin', async (ctx) => {
     const videos = await Video.find().sort({ createdAt: -1 });
 
     if (videos.length === 0) {
-        return ctx.reply('📭 Нет загруженных видео для удаления');
+        return ctx.reply('📭 Нет загруженных видео для удаления', { protect_content: true });
     }
 
     const buttons = videos.map((video, index) => {
@@ -685,7 +602,10 @@ bot.action('delete_video_admin', async (ctx) => {
 
     await ctx.reply(
         '🗑️ Выберите видео для удаления:',
-        Markup.inlineKeyboard(buttons)
+        {
+            reply_markup: Markup.inlineKeyboard(buttons).reply_markup,
+            protect_content: true
+        }
     );
 });
 
@@ -694,9 +614,9 @@ bot.on('text', async (ctx) => {
         const user = (ctx as any).user;
 
         if (user.hasAccess) {
-            await ctx.reply(`✅ Вы имеете доступ к каналу!\n🔗 Ссылка: ${process.env.SECRET_LINK}`);
+            await ctx.reply(`✅ Вы имеете доступ к каналу!\n🔗 Ссылка: ${process.env.SECRET_LINK}`, { protect_content: true });
         } else {
-            await ctx.reply('❌ У вас нет доступа к каналу. Используйте /pay для оплаты.');
+            await ctx.reply('❌ У вас нет доступа к каналу. Используйте /pay для оплаты.', { protect_content: true });
         }
     }
 });
