@@ -10,10 +10,6 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-app.get('/health', async (req, res) => {
-    return res.status(200);
-});
-
 app.post('/webhook/yookassa', async (req, res) => {
     try {
         const signature = req.headers['x-webhook-signature'] as string;
