@@ -214,7 +214,7 @@ class MessageService {
 
     async sendTelegramVideo(ctx: any, fileId: string, caption?: string, buttons?: any[]) {
         try {
-            const options: any = { parse_mode: 'Markdown' };
+            const options: any = { parse_mode: 'Markdown', protect_content: true };
 
             if (caption) {
                 options.caption = caption;

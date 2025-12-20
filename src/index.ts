@@ -467,17 +467,24 @@ async function showTariffs(ctx: any) {
     const user = (ctx as any).user;
 
     if (user.hasAccess) {
-        return ctx.reply('✅ У вас уже есть доступ к каналу!', { protect_content: true });
+        return ctx.reply('✅ У вас уже есть доступ к каналу!', {
+            parse_mode: 'HTML',
+            protect_content: true
+        });
     }
 
     const tariffMessage = messageService.getTariffMessage();
+
+    const formattedText = tariffMessage.text
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        .replace(/~~(.*?)~~/g, '<s>$1</s>');
 
     const keyboard = Markup.inlineKeyboard([
         tariffMessage.buttons.map(button => Markup.button.callback(button.text, button.action!))
     ]);
 
-    await ctx.reply(tariffMessage.text, {
-        parse_mode: 'Markdown',
+    await ctx.reply(formattedText, {
+        parse_mode: 'HTML',
         reply_markup: keyboard.reply_markup,
         protect_content: true
     });
