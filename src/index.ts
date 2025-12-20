@@ -81,14 +81,15 @@ async function sendMessageWithPhotos(ctx: any, text: string, photos: string[], b
         }
     } catch (error) {
         console.error(`Error sending message with photos:`, error);
-        await ctx.reply(text, { parse_mode: 'Markdown' });
+        await ctx.reply(text, { parse_mode: 'Markdown', protect_content: true });
     }
 }
 
 async function sendVideoByUrl(ctx: any, videoUrl: string, caption?: string, thumbnail?: string, buttons?: any[], photos?: string[]) {
     try {
         const options: any = {
-            parse_mode: 'Markdown'
+            parse_mode: 'Markdown',
+            protect_content: true
         };
 
         if (caption) {
@@ -259,7 +260,8 @@ bot.on('video', async (ctx) => {
                     `• MIME: ${video.mime_type || 'Не указан'}\n` +
                     `• File ID: ${video.file_id.substring(0, 30)}...\n\n` +
                     `Теперь видео будет отправляться через Telegram Cloud`,
-                parse_mode: 'Markdown'
+                parse_mode: 'Markdown',
+                protect_content: true
             }
         );
 
