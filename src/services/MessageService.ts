@@ -214,10 +214,17 @@ class MessageService {
 
     async sendTelegramVideo(ctx: any, fileId: string, caption?: string, buttons?: any[]) {
         try {
-            const options: any = { parse_mode: 'Markdown', protect_content: true };
+            const options: any = {
+                parse_mode: 'HTML',
+                protect_content: true
+            };
 
             if (caption) {
-                options.caption = caption;
+                const formattedCaption = caption
+                    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                    .replace(/~~(.*?)~~/g, '<s>$1</s>')
+                    .replace(/\*(.*?)\*/g, '<i>$1</i>');
+                options.caption = formattedCaption;
             }
 
             if (buttons && buttons.length > 0) {

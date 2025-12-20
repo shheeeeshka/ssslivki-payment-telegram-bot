@@ -398,6 +398,11 @@ bot.command('videos', async (ctx) => {
 async function showDetails(ctx: any) {
     const detailMessage = messageService.getPost4();
 
+    const formattedText = detailMessage.text
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        .replace(/~~(.*?)~~/g, '<s>$1</s>')
+        .replace(/\*(.*?)\*/g, '<i>$1</i>');
+
     try {
         if (detailMessage.photos && detailMessage.photos.length > 0) {
             if (detailMessage.photos.length >= 2) {
@@ -406,8 +411,8 @@ async function showDetails(ctx: any) {
                     return {
                         type: 'photo',
                         media: { source: absolutePath },
-                        caption: index === 0 ? detailMessage.text : undefined,
-                        parse_mode: 'Markdown'
+                        caption: index === 0 ? formattedText : undefined,
+                        parse_mode: 'HTML'
                     };
                 });
 
@@ -418,15 +423,15 @@ async function showDetails(ctx: any) {
                 await ctx.replyWithPhoto(
                     { source: absolutePath },
                     {
-                        caption: detailMessage.text,
-                        parse_mode: 'Markdown',
+                        caption: formattedText,
+                        parse_mode: 'HTML',
                         protect_content: true
                     }
                 );
             }
         } else {
-            await ctx.reply(detailMessage.text, {
-                parse_mode: 'Markdown',
+            await ctx.reply(formattedText, {
+                parse_mode: 'HTML',
                 protect_content: true
             });
         }
@@ -453,12 +458,9 @@ async function showDetails(ctx: any) {
         }
     } catch (error) {
         console.error('Error showing details:', error);
-        await ctx.reply(detailMessage.text, {
-            parse_mode: 'Markdown',
-            protect_content: true,
-            reply_markup: Markup.inlineKeyboard([
-                detailMessage.buttons.map(button => Markup.button.callback(button.text, button.action!))
-            ]).reply_markup
+        await ctx.reply(formattedText, {
+            parse_mode: 'HTML',
+            protect_content: true
         });
     }
 }
@@ -528,6 +530,51 @@ bot.action(/pay_tariff_(1|2)/, async (ctx) => {
     } catch (error) {
         console.error('Payment creation error:', error);
         await ctx.reply('❌ Ошибка при создании платежа. Попробуйте позже.', { protect_content: true });
+    }
+});
+
+bot.action('watch_free_lesson', async (ctx) => {
+    await ctx.answerCbQuery();
+
+    const videoLesson = await messageService.getVideoLesson();
+
+    if (videoLesson.telegramFileId) {
+        try {
+            const caption = videoLesson.caption ? videoLesson.caption
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                .replace(/~~(.*?)~~/g, '<s>$1</s>')
+                .replace(/\*(.*?)\*/g, '<i>$1</i>') : undefined;
+
+            await ctx.replyWithVideo(videoLesson.telegramFileId, {
+                caption: caption,
+                parse_mode: caption ? 'HTML' : undefined,
+                protect_content: true
+            });
+            return;
+        } catch (error) {
+            console.error('Telegram video error:', error);
+        }
+    }
+
+    if (videoLesson.video_url) {
+        const keyboard = Markup.inlineKeyboard([
+            [Markup.button.url('💌 Смотри урок здесь', videoLesson.video_url)]
+        ]);
+
+        const messageText = videoLesson.caption
+            ? `${videoLesson.caption}\n\n📹 Видео доступно по ссылке:`
+            : '📹 Видео доступно по ссылке:';
+
+        const formattedText = messageText
+            .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+            .replace(/~~(.*?)~~/g, '<s>$1</s>')
+            .replace(/\*(.*?)\*/g, '<i>$1</i>');
+
+        await ctx.reply(formattedText, {
+            reply_markup: keyboard.reply_markup,
+            parse_mode: 'HTML',
+            protect_content: true
+        });
     }
 });
 
