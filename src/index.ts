@@ -540,14 +540,7 @@ bot.action('watch_free_lesson', async (ctx) => {
 
     if (videoLesson.telegramFileId) {
         try {
-            const caption = videoLesson.caption ? videoLesson.caption
-                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-                .replace(/~~(.*?)~~/g, '<s>$1</s>')
-                .replace(/\*(.*?)\*/g, '<i>$1</i>') : undefined;
-
             await ctx.replyWithVideo(videoLesson.telegramFileId, {
-                caption: caption,
-                parse_mode: caption ? 'HTML' : undefined,
                 protect_content: true
             });
             return;
@@ -561,18 +554,8 @@ bot.action('watch_free_lesson', async (ctx) => {
             [Markup.button.url('💌 Смотри урок здесь', videoLesson.video_url)]
         ]);
 
-        const messageText = videoLesson.caption
-            ? `${videoLesson.caption}\n\n📹 Видео доступно по ссылке:`
-            : '📹 Видео доступно по ссылке:';
-
-        const formattedText = messageText
-            .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-            .replace(/~~(.*?)~~/g, '<s>$1</s>')
-            .replace(/\*(.*?)\*/g, '<i>$1</i>');
-
-        await ctx.reply(formattedText, {
+        await ctx.reply('📹 Видео доступно по ссылке:', {
             reply_markup: keyboard.reply_markup,
-            parse_mode: 'HTML',
             protect_content: true
         });
     }
